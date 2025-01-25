@@ -9,6 +9,7 @@ class AIEngines(str, Enum):
     gpt35turbo = "gpt-3.5-turbo"
     claud3opus = "claud-3-opus"
     claud3sonnet = "claud-3-sonnet"
+    claud35sonnet = "claud-3-5-sonnet"
     claud3haiku = "claud-3-haiku"
 
     @classmethod
@@ -25,6 +26,7 @@ class AIEngines(str, Enum):
             AIEngines.gpt35turbo: "03d99ad7-e344-4b0c-bbf5-46609f47d937",
             AIEngines.claud3opus: "0f87bb21-2357-49a4-a80d-d2f944b89671",
             AIEngines.claud3sonnet: "f9402e09-18b7-49e9-b08b-ad8bd8836511",
+            AIEngines.claud35sonnet: "0ff81eed-abd4-4627-846f-15eae7d21c99",
             AIEngines.claud3haiku: "2db268fe-914c-469e-b597-9ed46dc0f0f3",
             # AIEngines.gpt_4o: "c5a435e6-335b-419a-8386-41247bb6a359",
         }[self]
@@ -39,18 +41,20 @@ class AIEngines(str, Enum):
             AIEngines.gpt35turbo: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/04/ChatGPT_logo.svg/512px-ChatGPT_logo.svg.png",
             AIEngines.claud3opus: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/04/ChatGPT_logo.svg/512px-ChatGPT_logo.svg.png",
             AIEngines.claud3sonnet: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/04/ChatGPT_logo.svg/512px-ChatGPT_logo.svg.png",
+            AIEngines.claud35sonnet: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/04/ChatGPT_logo.svg/512px-ChatGPT_logo.svg.png",
             AIEngines.claud3haiku: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/04/ChatGPT_logo.svg/512px-ChatGPT_logo.svg.png",
         }[self]
 
     @property
     def price(self):
         return {
-            AIEngines.gpt_4o: 0.007,
-            AIEngines.gpt_4o_mini: 0.007,
-            AIEngines.gpt_4_turbo: 0.007,
-            AIEngines.gpt_4: 0.007,
-            AIEngines.gpt35turbo: 0.007,
-            AIEngines.claud3opus: 0.007,
-            AIEngines.claud3sonnet: 0.007,
-            AIEngines.claud3haiku: 0.007,
+            AIEngines.gpt_4o: 11,
+            AIEngines.gpt_4o_mini: 0.7,
+            AIEngines.gpt_4_turbo: 33,
+            AIEngines.gpt_4: 66,
+            AIEngines.gpt35turbo: 1.7,
+            AIEngines.claud3opus: 82.50,
+            AIEngines.claud3sonnet: 16.50,
+            AIEngines.claud35sonnet: 16.50,
+            AIEngines.claud3haiku: 1.4,
         }[self]

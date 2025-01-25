@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import uuid
 
@@ -9,7 +10,7 @@ from metisai.async_metis import AsyncMetisBot
 from metisai.metistypes import Session
 from server.config import Settings
 from usso.fastapi import jwt_access_security
-
+from .services import meter_cost, get_quota, register_cost
 from .models import AIEngines
 from .schemas import (
     AIEnginesSchema,
@@ -17,6 +18,7 @@ from .schemas import (
     SessionDetailResponse,
     SessionResponse,
 )
+from ufaas.exceptions import InsufficientFunds
 
 
 class SessionRouter(AbstractBaseRouter[Session, SessionResponse]):
@@ -28,9 +30,7 @@ class SessionRouter(AbstractBaseRouter[Session, SessionResponse]):
             tags=["Chat"],
             prefix="",
         )
-        self.metis = AsyncMetisBot(
-            api_key=Settings.METIS_API_KEY
-        )
+        self.metis = AsyncMetisBot(api_key=Settings.METIS_API_KEY)
 
     def config_schemas(self, schema, **kwargs):
         super().config_schemas(schema, **kwargs)
@@ -38,33 +38,46 @@ class SessionRouter(AbstractBaseRouter[Session, SessionResponse]):
         self.retrieve_response_schema = SessionDetailResponse
 
     def config_routes(self, **kwargs):
+        super().config_routes(prefix="/sessions", update_route=False)
         self.router.add_api_route(
-            "/sessions/",
-            self.list_items,
-            methods=["GET"],
-            response_model=self.list_response_schema,
-            status_code=200,
-        )
-        self.router.add_api_route(
-            "/sessions/{uid:uuid}",
-            self.retrieve_item,
-            methods=["GET"],
-            response_model=self.retrieve_response_schema,
-            status_code=200,
-        )
-        self.router.add_api_route(
-            "/sessions/",
-            self.create_item,
+            "/sessions/{uid:uuid}/messages",
+            self.chat_messages,
             methods=["POST"],
-            response_model=self.create_response_schema,
-            status_code=201,
+            status_code=200,
         )
         self.router.add_api_route(
-            "/sessions/{uid:uuid}",
-            self.delete_item,
-            methods=["DELETE"],
-            status_code=204,
+            "/sessions/{uid:uuid}/messages/{mid:uuid}",
+            self.chat_messages_async,
+            methods=["GET"],
+            status_code=200,
         )
+        # self.router.add_api_route(
+        #     "/sessions/",
+        #     self.list_items,
+        #     methods=["GET"],
+        #     response_model=self.list_response_schema,
+        #     status_code=200,
+        # )
+        # self.router.add_api_route(
+        #     "/sessions/{uid:uuid}",
+        #     self.retrieve_item,
+        #     methods=["GET"],
+        #     response_model=self.retrieve_response_schema,
+        #     status_code=200,
+        # )
+        # self.router.add_api_route(
+        #     "/sessions/",
+        #     self.create_item,
+        #     methods=["POST"],
+        #     response_model=self.create_response_schema,
+        #     status_code=201,
+        # )
+        # self.router.add_api_route(
+        #     "/sessions/{uid:uuid}",
+        #     self.delete_item,
+        #     methods=["DELETE"],
+        #     status_code=204,
+        # )
 
     async def get_item(self, uid: uuid.UUID, **kwargs):
         return await self.metis.retrieve_session(session_id=uid)
@@ -97,7 +110,9 @@ class SessionRouter(AbstractBaseRouter[Session, SessionResponse]):
         engine: AIEngines = Body(AIEngines.gpt_4o, embed=True),
     ):
         user_id = str(await self.get_user_id(request))
-        session = await self.metis.create_session(user_id=user_id, bot_id=engine.metis_bot_id)
+        session = await self.metis.create_session(
+            user_id=user_id, bot_id=engine.metis_bot_id
+        )
         return SessionResponse.from_session(session)
 
     async def delete_item(self, request: fastapi.Request, uid: uuid.UUID):
@@ -105,37 +120,47 @@ class SessionRouter(AbstractBaseRouter[Session, SessionResponse]):
         res = await self.metis.delete_session(session=uid)
         return res
 
+    async def chat_messages(
+        self,
+        request: fastapi.Request,
+        uid: uuid.UUID,
+        message: str = Body(embed=True),
+        async_task: bool = False,
+        stream: bool = False,
+        # split_criteria: dict = None,
+    ):
+        user_id = await self.get_user_id(request)
+        quota = await get_quota(user_id)
+        if quota <= 0:
+            raise InsufficientFunds(
+                message="You do not have enough coins to chat"
+            )
+
+        if stream:
+            response = self.metis.stream_messages(
+                session=uid, prompt=message, split_criteria={}
+            )
+
+            async def generate():
+                async for msg in response:
+                    logging.info(msg.message.content)
+                    yield msg.message.content + "\n"
+
+                asyncio.create_task(register_cost(self.metis, uid, user_id))
+
+            return StreamingResponse(generate(), media_type="text/plain")
+        if async_task:
+            return await self.metis.send_message_async(session=uid, prompt=message)
+        return await self.metis.send_message(session=uid, prompt=message)
+
+    async def chat_messages_async(
+        self, request: fastapi.Request, uid: uuid.UUID, mid: uuid.UUID
+    ):
+        _ = await self.get_user_id(request)
+        return await self.metis.retrieve_async_task(session=uid, task_id=mid)
+
 
 router = SessionRouter().router
-metis = SessionRouter().metis
-
-
-@router.post("/sessions/{uid:uuid}/messages")
-async def chat_messages(
-    uid: uuid.UUID,
-    message: str = Body(embed=True),
-    async_task: bool = False,
-    stream: bool = False,
-    # split_criteria: dict = None,
-):
-    if stream:
-        response = metis.stream_messages(session=uid, prompt=message, split_criteria={})
-
-        async def generate():
-            async for msg in response:
-                logging.info(msg.message.content)
-                yield msg.message.content + "\n"
-
-        return StreamingResponse(generate(), media_type="text/plain")
-    if async_task:
-        return await metis.send_message_async(session=uid, prompt=message)
-    return await metis.send_message(session=uid, prompt=message)
-
-
-@router.get("/sessions/{uid:uuid}/messages/{mid:uuid}")
-async def chat_messages_async(uid: uuid.UUID, mid: uuid.UUID):
-    return await metis.retrieve_async_task(session=uid, task_id=mid)
-
 
 @router.get("/engines")
 async def chat_engines():
