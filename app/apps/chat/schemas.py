@@ -14,16 +14,26 @@ class SessionResponse(BaseModel):
 
     @classmethod
     def from_session(cls, session: Session):
+        from fastapi_mongo_base.utils import texttools
+
+        engine = AIEngines.from_metis_bot_id(session.botId)
+        initial_text = texttools.sanitize_filename(
+            session.messages[0].content or "" if session.messages else "", 60
+        )
         return cls(
             uid=session.id,
-            name="New Session ...",
+            name=initial_text,
             messages=session.messages,
             created_at=session.startDate,
+            cost=session.cost,
+            engine=engine,
         )
 
 
 class SessionDetailResponse(SessionResponse):
     messages: list[Message]
+    cost: float
+    engine: AIEngines
 
 
 class PaginatedResponse(BaseModel):

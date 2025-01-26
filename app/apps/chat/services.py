@@ -1,11 +1,11 @@
-import uuid
 import asyncio
 import itertools
+import uuid
 
+from fastapi_mongo_base.utils import basic
 from metisai.async_metis import AsyncMetisBot
 from metisai.metistypes import Session
 from server.config import Settings
-from fastapi_mongo_base.utils import basic
 from ufaas import AsyncUFaaS
 from ufaas.apps.saas.schemas import UsageCreateSchema
 
@@ -45,6 +45,7 @@ async def get_quota(user_id: uuid.UUID):
     )
     return quotas.quota
 
+
 @basic.try_except_wrapper
 async def meter_cost(user_id: uuid.UUID, cost: float):
     ufaas_client = AsyncUFaaS(
@@ -66,7 +67,9 @@ async def meter_cost(user_id: uuid.UUID, cost: float):
 
 
 @basic.try_except_wrapper
-async def register_cost(metis: AsyncMetisBot, session_id: uuid.UUID, user_id: uuid.UUID):
+async def register_cost(
+    metis: AsyncMetisBot, session_id: uuid.UUID, user_id: uuid.UUID
+):
     session = await metis.retrieve_session(session_id)
     if not session.messages:
         return

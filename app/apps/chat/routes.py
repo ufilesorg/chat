@@ -9,8 +9,9 @@ from fastapi_mongo_base.routes import AbstractBaseRouter
 from metisai.async_metis import AsyncMetisBot
 from metisai.metistypes import Session
 from server.config import Settings
+from ufaas.exceptions import InsufficientFunds
 from usso.fastapi import jwt_access_security
-from .services import meter_cost, get_quota, register_cost
+
 from .models import AIEngines
 from .schemas import (
     AIEnginesSchema,
@@ -18,7 +19,7 @@ from .schemas import (
     SessionDetailResponse,
     SessionResponse,
 )
-from ufaas.exceptions import InsufficientFunds
+from .services import get_quota, register_cost
 
 
 class SessionRouter(AbstractBaseRouter[Session, SessionResponse]):
@@ -132,9 +133,7 @@ class SessionRouter(AbstractBaseRouter[Session, SessionResponse]):
         user_id = await self.get_user_id(request)
         quota = await get_quota(user_id)
         if quota <= 0:
-            raise InsufficientFunds(
-                message="You do not have enough coins to chat"
-            )
+            raise InsufficientFunds(message="You do not have enough coins to chat")
 
         if stream:
             response = self.metis.stream_messages(
@@ -161,6 +160,7 @@ class SessionRouter(AbstractBaseRouter[Session, SessionResponse]):
 
 
 router = SessionRouter().router
+
 
 @router.get("/engines")
 async def chat_engines():
