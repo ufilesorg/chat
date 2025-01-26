@@ -14,6 +14,7 @@ class SessionResponse(BaseModel):
     engine: AIEngines
     thumbnail_url: str
     price: float
+    cost: float
 
     @classmethod
     def from_session(cls, session: Session):
@@ -37,7 +38,6 @@ class SessionResponse(BaseModel):
 
 class SessionDetailResponse(SessionResponse):
     messages: list[Message]
-    cost: float
 
 
 class PaginatedResponse(BaseModel):
