@@ -11,6 +11,9 @@ class SessionResponse(BaseModel):
     uid: uuid.UUID
     name: str
     created_at: datetime
+    engine: AIEngines
+    thumbnail_url: str
+    price: float
 
     @classmethod
     def from_session(cls, session: Session):
@@ -18,7 +21,7 @@ class SessionResponse(BaseModel):
 
         engine = AIEngines.from_metis_bot_id(session.botId)
         initial_text = texttools.sanitize_filename(
-            session.messages[0].content or "" if session.messages else "", 60
+            session.messages[-1].content or "" if session.messages else "Session ...", 60
         )
         return cls(
             uid=session.id,
@@ -35,9 +38,6 @@ class SessionResponse(BaseModel):
 class SessionDetailResponse(SessionResponse):
     messages: list[Message]
     cost: float
-    engine: AIEngines
-    thumbnail_url: str
-    price: float
 
 
 class PaginatedResponse(BaseModel):
