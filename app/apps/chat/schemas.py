@@ -22,7 +22,7 @@ class SessionResponse(BaseModel):
 
         engine = AIEngines.from_metis_bot_id(session.botId)
         initial_text = texttools.sanitize_filename(
-            session.messages[-1].content or "" if session.messages else "Session ...", 60
+            session.messages[-1].content or "" if session.messages else "Session ...", 40
         )
         return cls(
             uid=session.id,
