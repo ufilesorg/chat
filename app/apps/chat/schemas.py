@@ -27,6 +27,8 @@ class SessionResponse(BaseModel):
             created_at=session.startDate,
             cost=session.cost,
             engine=engine,
+            thumbnail_url=engine.thumbnail_url,
+            price=engine.price,
         )
 
 
@@ -34,6 +36,8 @@ class SessionDetailResponse(SessionResponse):
     messages: list[Message]
     cost: float
     engine: AIEngines
+    thumbnail_url: str
+    price: float
 
 
 class PaginatedResponse(BaseModel):
