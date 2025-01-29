@@ -60,24 +60,24 @@ class AIEngines(str, Enum):
             # AIEngines.claud3haiku: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/04/ChatGPT_logo.svg/512px-ChatGPT_logo.svg.png",
             AIEngines.gemini_1_5_flash: "https://www.gstatic.com/lamda/images/gemini_favicon_f069958c85030456e93de685481c559f160ea06b.png",
             AIEngines.grok: "https://x.ai/icon.svg?2f55916d3a05ba17",
-            AIEngines.deepseek: "https://www.deepseek.com/favicon.ico",
-            AIEngines.deepseek_reasoner: "https://www.deepseek.com/favicon.ico",
+            AIEngines.deepseek: "https://media.pixiee.io/v1/f/ffa4c743-c873-437d-936c-e20c38b1f870/deepseek.webp",
+            AIEngines.deepseek_reasoner: "https://media.pixiee.io/v1/f/ffa4c743-c873-437d-936c-e20c38b1f870/deepseek.webp",
         }[self]
 
     @property
-    def price(self):
+    def price(self):  # coin / 1k output tokens (input has costs too)
         return {
-            AIEngines.gpt_4o: 11,
-            AIEngines.gpt_4o_mini: 0.7,
-            # AIEngines.gpt_4_turbo: 33,
-            # AIEngines.gpt_4: 66,
-            # AIEngines.gpt35turbo: 1.7,
-            # AIEngines.claud3opus: 82.50,
-            # AIEngines.claud3sonnet: 16.50,
-            AIEngines.claud35sonnet: 16.50,
-            # AIEngines.claud3haiku: 1.4,
-            AIEngines.gemini_1_5_flash: 0.30,
-            AIEngines.grok: 11,
-            AIEngines.deepseek: 1,
-            AIEngines.deepseek_reasoner: 1,
+            AIEngines.gpt_4o: 1.1,
+            AIEngines.gpt_4o_mini: 7,
+            # AIEngines.gpt_4_turbo: 3.3,
+            # AIEngines.gpt_4: 6.6,
+            # AIEngines.gpt35turbo: .17,
+            # AIEngines.claud3opus: 8.25,
+            # AIEngines.claud3sonnet: 1.65,
+            AIEngines.claud35sonnet: 1.65,
+            # AIEngines.claud3haiku: .14,
+            AIEngines.gemini_1_5_flash: .03,
+            AIEngines.grok: 1.1,
+            AIEngines.deepseek: .1,
+            AIEngines.deepseek_reasoner: .1,
         }[self]
