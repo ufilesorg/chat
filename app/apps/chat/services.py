@@ -6,8 +6,7 @@ from fastapi_mongo_base.utils import basic
 from metisai.async_metis import AsyncMetisBot
 from metisai.metistypes import Session
 from server.config import Settings
-from ufaas import AsyncUFaaS
-from ufaas.apps.saas.schemas import UsageCreateSchema
+from utils import finance
 
 from .models import AIEngines
 
@@ -32,41 +31,6 @@ async def get_all_sessions_sorted(user_id):
 
 
 @basic.try_except_wrapper
-async def get_quota(user_id: uuid.UUID):
-    ufaas_client = AsyncUFaaS(
-        ufaas_base_url=Settings.UFAAS_BASE_URL,
-        usso_base_url=Settings.USSO_BASE_URL,
-        api_key=Settings.UFILES_API_KEY,
-    )
-    quotas = await ufaas_client.saas.enrollments.get_quotas(
-        user_id=user_id,
-        asset="coin",
-        variant="chat",
-    )
-    return quotas.quota
-
-
-@basic.try_except_wrapper
-async def meter_cost(user_id: uuid.UUID, cost: float):
-    ufaas_client = AsyncUFaaS(
-        ufaas_base_url=Settings.UFAAS_BASE_URL,
-        usso_base_url=Settings.USSO_BASE_URL,
-        api_key=Settings.UFILES_API_KEY,
-    )
-    coin_cost = cost * 100
-    usage_schema = UsageCreateSchema(
-        user_id=user_id,
-        asset="coin",
-        amount=coin_cost,
-        variant="chat",
-    )
-    usage = await ufaas_client.saas.usages.create_item(
-        usage_schema.model_dump(mode="json")
-    )
-    return usage
-
-
-@basic.try_except_wrapper
 async def register_cost(
     metis: AsyncMetisBot, session_id: uuid.UUID, user_id: uuid.UUID
 ):
@@ -74,4 +38,4 @@ async def register_cost(
     if not session.messages:
         return
     cost = session.messages[0].cost
-    await meter_cost(user_id, cost)
+    await finance.meter_cost(user_id, cost)
