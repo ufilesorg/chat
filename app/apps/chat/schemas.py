@@ -1,10 +1,12 @@
 import uuid
 from datetime import datetime
 
+from fastapi_mongo_base.core.enums import Language
 from metisai.metistypes import Message, Session
 from pydantic import BaseModel
 
-from .models import AIEngines
+from . import models
+from .ai import AIEngines
 
 
 class SessionResponse(BaseModel):
@@ -15,26 +17,35 @@ class SessionResponse(BaseModel):
     thumbnail_url: str
     price: float
     cost: float
+    language: Language = Language.English
 
     @classmethod
-    def from_session(cls, session: Session):
-        from fastapi_mongo_base.utils import texttools
-
+    async def from_session(cls, session: Session, **kwargs):
         engine = AIEngines.from_metis_bot_id(session.botId)
-        initial_text = texttools.sanitize_filename(
-            session.messages[-1].content or "" if session.messages else "Session ...",
-            40,
+
+        db_session = await models.Session.find_one(
+            models.Session.uid == uuid.UUID(session.id)
         )
-        return cls(
-            uid=session.id,
-            name=initial_text,
-            messages=session.messages,
-            created_at=session.startDate,
-            cost=session.cost,
-            engine=engine,
-            thumbnail_url=engine.thumbnail_url,
-            price=engine.price,
-        )
+        if not db_session:
+            name = "New Session ..."
+            language = Language.English
+        else:
+            name = db_session.name or "New Session ..."
+            language = db_session.language or Language.English
+
+        data = {
+            "uid": session.id,
+            "name": name,
+            "language": language,
+            "messages": session.messages,
+            "created_at": session.startDate,
+            "cost": session.cost,
+            "engine": engine,
+            "thumbnail_url": engine.thumbnail_url,
+            "price": engine.price,
+        }
+        data.update(**kwargs)
+        return cls(**data)
 
 
 class SessionDetailResponse(SessionResponse):

@@ -1,24 +1,25 @@
 import asyncio
 import itertools
+import logging
 import uuid
 
 from fastapi_mongo_base.utils import basic
 from metisai.async_metis import AsyncMetisBot
 from metisai.metistypes import Session
 from server.config import Settings
-from utils import finance
+from utils import finance, promptly
 
-from .models import AIEngines
+from . import ai, models
 
 
-async def get_sessions(engine: AIEngines, user_id: str):
+async def get_sessions(engine: ai.AIEngines, user_id: str):
     metis = AsyncMetisBot(api_key=Settings.METIS_API_KEY, bot_id=engine.metis_bot_id)
     return await metis.list_sessions(user_id)
 
 
 async def get_all_sessions(user_id) -> list[Session]:
     sessions_task = []
-    for engine in AIEngines:
+    for engine in ai.AIEngines:
         sessions_task.append(get_sessions(engine, user_id))
 
     sessions2d = await asyncio.gather(*sessions_task)
@@ -39,3 +40,56 @@ async def register_cost(
         return
     cost = session.messages[0].cost
     await finance.meter_cost(user_id, cost)
+
+
+def db_session_from_metis_session(session: Session | str) -> models.Session:
+    if isinstance(session, str):
+        session = AsyncMetisBot(
+            api_key=Settings.METIS_API_KEY, bot_id=session
+        ).retrieve_session(session)
+    user_id = (
+        uuid.UUID(session.user.id)
+        if isinstance(session.user.id, str)
+        else session.user.id
+    )
+    return models.Session(
+        uid=session.id,
+        user_id=user_id,
+        engine=ai.AIEngines.from_metis_bot_id(session.botId),
+    )
+
+
+async def create_session(engine: ai.AIEngines, user_id: uuid.UUID):
+    metis = AsyncMetisBot(api_key=Settings.METIS_API_KEY, bot_id=engine.metis_bot_id)
+    session = await metis.create_session(user_id=user_id)
+    db_session = db_session_from_metis_session(session)
+    await db_session.save()
+    return session
+
+
+@basic.try_except_wrapper
+async def set_name(session_id: uuid.UUID, message: str):
+    logging.info(f"Setting name for session {session_id}")
+    db_session = await models.Session.find_one(models.Session.uid == session_id)
+    if not db_session:
+        logging.info(f"Session {session_id} not found, creating new db session")
+        db_session = db_session_from_metis_session(session_id)
+
+    if db_session.name:
+        logging.info(f"Session {session_id} already has a name {db_session.name}")
+        return
+
+    async with promptly.PromptlyClient() as client:
+        resp = await client.ai(key="session-namer", data={"message": message})
+
+    session_name = resp.get("session_name", "New Session ...")
+    language = resp.get("language", None)
+
+    logging.info(
+        f"Setting name for session {session_id} to {session_name} and language {language}"
+    )
+
+    db_session.name = session_name
+    db_session.language = language
+    await db_session.save()
+    return db_session

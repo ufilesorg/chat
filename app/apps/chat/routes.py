@@ -1,8 +1,10 @@
 import asyncio
 import logging
 import uuid
+from datetime import datetime
 
 import fastapi
+from aiocache import cached
 from fastapi import Body, Query
 from fastapi.responses import StreamingResponse
 from fastapi_mongo_base.routes import AbstractBaseRouter
@@ -12,14 +14,13 @@ from server.config import Settings
 from usso.fastapi import jwt_access_security
 from utils import finance
 
-from .models import AIEngines
+from . import ai, services
 from .schemas import (
     AIEnginesSchema,
     PaginatedResponse,
     SessionDetailResponse,
     SessionResponse,
 )
-from .services import register_cost
 
 
 class SessionRouter(AbstractBaseRouter[Session, SessionResponse]):
@@ -52,40 +53,15 @@ class SessionRouter(AbstractBaseRouter[Session, SessionResponse]):
             methods=["GET"],
             status_code=200,
         )
-        # self.router.add_api_route(
-        #     "/sessions/",
-        #     self.list_items,
-        #     methods=["GET"],
-        #     response_model=self.list_response_schema,
-        #     status_code=200,
-        # )
-        # self.router.add_api_route(
-        #     "/sessions/{uid:uuid}",
-        #     self.retrieve_item,
-        #     methods=["GET"],
-        #     response_model=self.retrieve_response_schema,
-        #     status_code=200,
-        # )
-        # self.router.add_api_route(
-        #     "/sessions/",
-        #     self.create_item,
-        #     methods=["POST"],
-        #     response_model=self.create_response_schema,
-        #     status_code=201,
-        # )
-        # self.router.add_api_route(
-        #     "/sessions/{uid:uuid}",
-        #     self.delete_item,
-        #     methods=["DELETE"],
-        #     status_code=204,
-        # )
 
+    @cached(ttl=60 * 60 * 24)
     async def get_item(self, uid: uuid.UUID, **kwargs):
         return await self.metis.retrieve_session(session_id=uid)
 
     async def retrieve_item(self, request: fastapi.Request, uid: uuid.UUID):
-        session = await super().retrieve_item(request, uid)
-        return SessionDetailResponse.from_session(session)
+        user_id = await self.get_user_id(request)
+        session = await self.get_item(uid, user_id=user_id, time=datetime.now())
+        return await SessionDetailResponse.from_session(session)
 
     async def list_items(
         self,
@@ -96,7 +72,7 @@ class SessionRouter(AbstractBaseRouter[Session, SessionResponse]):
         user_id = await self.get_user_id(request)
         # sessions = await get_all_sessions_sorted(user_id)
         sessions = await self.metis.list_sessions(user_id)
-        sessions = [SessionResponse.from_session(session) for session in sessions]
+        sessions = [await SessionResponse.from_session(session) for session in sessions]
         # TODO request paginated sessions
         return PaginatedResponse(
             items=sessions[offset : offset + limit],
@@ -108,13 +84,11 @@ class SessionRouter(AbstractBaseRouter[Session, SessionResponse]):
     async def create_item(
         self,
         request: fastapi.Request,
-        engine: AIEngines = Body(AIEngines.gpt_4o, embed=True),
+        engine: ai.AIEngines = Body(ai.AIEngines.gpt_4o, embed=True),
     ):
-        user_id = str(await self.get_user_id(request))
-        session = await self.metis.create_session(
-            user_id=user_id, bot_id=engine.metis_bot_id
-        )
-        return SessionResponse.from_session(session)
+        user_id = await self.get_user_id(request)
+        session = await services.create_session(engine, user_id)
+        return await SessionResponse.from_session(session)
 
     async def delete_item(self, request: fastapi.Request, uid: uuid.UUID):
         await self.get_user_id(request)
@@ -132,8 +106,10 @@ class SessionRouter(AbstractBaseRouter[Session, SessionResponse]):
     ):
         user_id = await self.get_user_id(request)
         quota = await finance.check_quota(
-            user_id, len(message) * AIEngines.gpt_4o.input_token_price / 1000
+            user_id, len(message) * ai.AIEngines.gpt_4o.input_token_price / 1000
         )
+
+        asyncio.create_task(services.set_name(uid, message))
 
         if stream:
             response = self.metis.stream_messages(
@@ -145,7 +121,7 @@ class SessionRouter(AbstractBaseRouter[Session, SessionResponse]):
                     logging.info(msg.message.content)
                     yield msg.message.content + "\n"
 
-                asyncio.create_task(register_cost(self.metis, uid, user_id))
+                asyncio.create_task(services.register_cost(self.metis, uid, user_id))
 
             return StreamingResponse(generate(), media_type="text/plain")
         if async_task:
@@ -164,5 +140,5 @@ router = SessionRouter().router
 
 @router.get("/engines")
 async def chat_engines():
-    engines = [AIEnginesSchema.from_model(engine) for engine in AIEngines]
+    engines = [AIEnginesSchema.from_model(engine) for engine in ai.AIEngines]
     return engines
