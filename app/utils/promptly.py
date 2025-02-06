@@ -11,7 +11,7 @@ class PromptlyClient(httpx.AsyncClient):
             headers={
                 "accept": "application/json",
                 "Content-Type": "application/json",
-                "x-api-key": os.getenv("PROMPTLY_API_KEY"),
+                "x-api-key": os.getenv("USSO_API_KEY"),
             },
         )
 
