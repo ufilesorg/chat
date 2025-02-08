@@ -52,8 +52,9 @@ def db_session_from_metis_session(session: Session | str) -> models.Session:
         if isinstance(session.user.id, str)
         else session.user.id
     )
+    session_uid = uuid.UUID(session.id) if isinstance(session.id, str) else session.id
     return models.Session(
-        uid=session.id,
+        uid=session_uid,
         user_id=user_id,
         engine=ai.AIEngines.from_metis_bot_id(session.botId),
     )
@@ -61,7 +62,7 @@ def db_session_from_metis_session(session: Session | str) -> models.Session:
 
 async def create_session(engine: ai.AIEngines, user_id: uuid.UUID):
     metis = AsyncMetisBot(api_key=Settings.METIS_API_KEY, bot_id=engine.metis_bot_id)
-    session = await metis.create_session(user_id=user_id)
+    session = await metis.create_session(user_id=str(user_id))
     db_session = db_session_from_metis_session(session)
     await db_session.save()
     return session
@@ -70,7 +71,7 @@ async def create_session(engine: ai.AIEngines, user_id: uuid.UUID):
 @basic.try_except_wrapper
 async def set_name(session_id: uuid.UUID, message: str):
     logging.info(f"Setting name for session {session_id}")
-    db_session = await models.Session.find_one(models.Session.uid == session_id)
+    db_session = await models.Session.find_one({"uid": session_id})
     if not db_session:
         logging.info(f"Session {session_id} not found, creating new db session")
         db_session = db_session_from_metis_session(session_id)

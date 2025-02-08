@@ -86,9 +86,13 @@ class SessionRouter(AbstractBaseRouter[Session, SessionResponse]):
         request: fastapi.Request,
         engine: ai.AIEngines = Body(ai.AIEngines.gpt_4o, embed=True),
     ):
-        user_id = await self.get_user_id(request)
-        session = await services.create_session(engine, user_id)
-        return await SessionResponse.from_session(session)
+        try:
+            user_id = await self.get_user_id(request)
+            session = await services.create_session(engine, user_id)
+            return await SessionResponse.from_session(session)
+        except Exception as e:
+            logging.error(f"Error creating session: {e}")
+            raise fastapi.HTTPException(status_code=500, detail=str(e))
 
     async def delete_item(self, request: fastapi.Request, uid: uuid.UUID):
         await self.get_user_id(request)
