@@ -6,6 +6,7 @@ class AIEngines(str, Enum):
     gpt_4o_mini = "gpt-4o-mini"
     claud35sonnet = "claud-3-5-sonnet"
     gemini_1_5_flash = "gemini-1-5-flash"
+    gemini_2_flash = "gemini-2-flash"
     grok = "grok"
     deepseek = "deepseek"
     deepseek_reasoner = "deepseek_reasoner"
@@ -53,6 +54,14 @@ class AIEngines(str, Enum):
                 "price": 0.03,
                 "input_token_price": 0.001,
                 "output_token_price": 0.003,
+                "max_tokens": 16384,
+            },
+            AIEngines.gemini_2_flash: {
+                "metis_bot_id": "c928bda6-442d-43ed-a3d4-5aef923fb0f5",
+                "thumbnail_url": "https://www.gstatic.com/lamda/images/gemini_favicon_f069958c85030456e93de685481c559f160ea06b.png",
+                "price": 0.03,
+                "input_token_price": 0.001,
+                "output_token_price": 0.004,
                 "max_tokens": 16384,
             },
             AIEngines.grok: {
