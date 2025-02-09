@@ -4,7 +4,7 @@ from enum import Enum
 class AIEngines(str, Enum):
     gpt_4o = "gpt-4o"
     gpt_4o_mini = "gpt-4o-mini"
-    claud35sonnet = "claud-3-5-sonnet"
+    claude_3_5_sonnet = "claude-3-5-sonnet"
     gemini_1_5_flash = "gemini-1-5-flash"
     gemini_2_flash = "gemini-2-flash"
     grok = "grok"
@@ -40,7 +40,7 @@ class AIEngines(str, Enum):
                 "output_token_price": 0.07,
                 "max_tokens": 16384,
             },
-            AIEngines.claud35sonnet: {
+            AIEngines.claude_3_5_sonnet: {
                 "metis_bot_id": "0ff81eed-abd4-4627-846f-15eae7d21c99",
                 "thumbnail_url": "https://www.anthropic.com/images/icons/safari-pinned-tab.svg",
                 "price": 1.65,
