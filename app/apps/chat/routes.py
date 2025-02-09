@@ -14,12 +14,13 @@ from server.config import Settings
 from usso.fastapi import jwt_access_security
 from utils import finance
 
-from . import ai, services
+from . import ai, models, services
 from .schemas import (
     AIEnginesSchema,
     PaginatedResponse,
     SessionDetailResponse,
     SessionResponse,
+    SessionUpdateRequest,
 )
 
 
@@ -40,7 +41,7 @@ class SessionRouter(AbstractBaseRouter[Session, SessionResponse]):
         self.retrieve_response_schema = SessionDetailResponse
 
     def config_routes(self, **kwargs):
-        super().config_routes(prefix="/sessions", update_route=False)
+        super().config_routes(prefix="/sessions")
         self.router.add_api_route(
             "/sessions/{uid:uuid}/messages",
             self.chat_messages,
@@ -86,6 +87,29 @@ class SessionRouter(AbstractBaseRouter[Session, SessionResponse]):
         request: fastapi.Request,
         engine: ai.AIEngines = Body(ai.AIEngines.gpt_4o, embed=True),
     ):
+        try:
+            user_id = await self.get_user_id(request)
+            session = await services.create_session(engine, user_id)
+            return await SessionResponse.from_session(session)
+        except Exception as e:
+            logging.error(f"Error creating session: {e}")
+            raise fastapi.HTTPException(status_code=500, detail=str(e))
+
+    async def update_item(
+        self,
+        request: fastapi.Request,
+        uid: uuid.UUID,
+        data: SessionUpdateRequest,
+    ):
+        user_id = await self.get_user_id(request)
+        model_session: models.Session = await models.Session.get_item(
+            uid, user_id=user_id
+        )
+        model_session.name = data.name
+        await model_session.save()
+        session = await self.get_item(uid, user_id=user_id)
+        return await SessionDetailResponse.from_session(session)
+
         try:
             user_id = await self.get_user_id(request)
             session = await services.create_session(engine, user_id)

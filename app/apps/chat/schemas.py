@@ -23,7 +23,9 @@ class SessionResponse(BaseModel):
     async def from_session(cls, session: Session, **kwargs):
         engine = AIEngines.from_metis_bot_id(session.botId)
 
-        session_uid = uuid.UUID(session.id) if isinstance(session.id, str) else session.id
+        session_uid = (
+            uuid.UUID(session.id) if isinstance(session.id, str) else session.id
+        )
         db_session = await models.Session.find_one({"uid": session_uid})
         if not db_session:
             name = "New Session ..."
@@ -70,3 +72,7 @@ class AIEnginesSchema(BaseModel):
             thumbnail_url=engine.thumbnail_url,
             price=engine.price,
         )
+
+
+class SessionUpdateRequest(BaseModel):
+    name: str
