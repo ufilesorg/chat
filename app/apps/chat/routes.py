@@ -43,6 +43,12 @@ class SessionRouter(AbstractBaseRouter[Session, SessionResponse]):
     def config_routes(self, **kwargs):
         super().config_routes(prefix="/sessions")
         self.router.add_api_route(
+            "/sessions/messages",
+            self.create_session_chat_messages,
+            methods=["POST"],
+            status_code=200,
+        )
+        self.router.add_api_route(
             "/sessions/{uid:uuid}/messages",
             self.chat_messages,
             methods=["POST"],
@@ -122,6 +128,48 @@ class SessionRouter(AbstractBaseRouter[Session, SessionResponse]):
         await self.get_user_id(request)
         res = await self.metis.delete_session(session=uid)
         return res
+
+    async def create_session_chat_messages(
+        self,
+        request: fastapi.Request,
+        message: str = Body(embed=True),
+        async_task: bool = False,
+        stream: bool = False,
+        engine: ai.AIEngines = Body(ai.AIEngines.gpt_4o, embed=True),
+        # split_criteria: dict = None,
+    ):
+        user_id = await self.get_user_id(request)
+        quota = await finance.check_quota(
+            user_id, len(message) * ai.AIEngines.gpt_4o.input_token_price / 1000
+        )
+
+        session = await services.create_session(engine, user_id)
+        uid = uuid.UUID(session.id) if isinstance(session.id, str) else session.id
+
+        asyncio.create_task(services.set_name(uid, message))
+
+        if stream:
+            response = self.metis.stream_messages(
+                session=uid, prompt=message, split_criteria={}
+            )
+
+            async def generate():
+                import json
+
+                yield json.dumps({"uid": uid}) + "\n"
+                async for msg in response:
+                    logging.info(msg.message.content)
+                    yield msg.message.content + "\n"
+
+                asyncio.create_task(services.register_cost(self.metis, uid, user_id))
+
+            return StreamingResponse(generate(), media_type="text/plain")
+        if async_task:
+            return (
+                await self.metis.send_message_async(session=uid, prompt=message)
+            ).model_dump() | {"uid": uid}
+        response = await self.metis.send_message(session=uid, prompt=message)
+        return response.model_dump() | {"uid": uid}
 
     async def chat_messages(
         self,
