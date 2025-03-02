@@ -178,6 +178,7 @@ class SessionRouter(AbstractBaseRouter[Session, SessionResponse]):
         message: str = Body(embed=True),
         async_task: bool = False,
         stream: bool = False,
+        # split_criteria: dict = None,
     ):
         user_id = await self.get_user_id(request)
         quota = await finance.check_quota(
@@ -196,7 +197,7 @@ class SessionRouter(AbstractBaseRouter[Session, SessionResponse]):
                     async for msg in response:
                         chunk = msg.message.content
                         # Ensure each chunk is flushed immediately
-                        yield f"data: {chunk}\n\n"
+                        yield f"{{'message': '{chunk}'}}\n\n"
                 except Exception as e:
                     logging.error(f"Error during message streaming: {e}")
                     yield f"data: Error: {str(e)}\n\n"
