@@ -178,7 +178,6 @@ class SessionRouter(AbstractBaseRouter[Session, SessionResponse]):
         message: str = Body(embed=True),
         async_task: bool = False,
         stream: bool = False,
-        # split_criteria: dict = None,
     ):
         user_id = await self.get_user_id(request)
         quota = await finance.check_quota(
@@ -193,13 +192,27 @@ class SessionRouter(AbstractBaseRouter[Session, SessionResponse]):
             )
 
             async def generate():
-                async for msg in response:
-                    logging.info(msg.message.content)
-                    yield msg.message.content + "\n"
+                try:
+                    async for msg in response:
+                        chunk = msg.message.content
+                        # Ensure each chunk is flushed immediately
+                        yield f"data: {chunk}\n\n"
+                except Exception as e:
+                    logging.error(f"Error during message streaming: {e}")
+                    yield f"data: Error: {str(e)}\n\n"
+                finally:
+                    asyncio.create_task(
+                        services.register_cost(self.metis, uid, user_id)
+                    )
 
-                asyncio.create_task(services.register_cost(self.metis, uid, user_id))
-
-            return StreamingResponse(generate(), media_type="text/plain")
+            return StreamingResponse(
+                generate(),
+                media_type="text/event-stream",
+                headers={
+                    "Cache-Control": "no-cache",
+                    "Connection": "keep-alive",
+                },
+            )
         if async_task:
             return await self.metis.send_message_async(session=uid, prompt=message)
         return await self.metis.send_message(session=uid, prompt=message)
