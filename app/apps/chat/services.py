@@ -42,9 +42,11 @@ async def register_cost(
     await finance.meter_cost(user_id, cost)
 
 
-def db_session_from_metis_session(session: Session | str) -> models.Session:
-    if isinstance(session, str):
-        session = AsyncMetisBot(
+async def db_session_from_metis_session(
+    session: Session | str | uuid.UUID,
+) -> models.Session:
+    if isinstance(session, str | uuid.UUID):
+        session = await AsyncMetisBot(
             api_key=Settings.METIS_API_KEY, bot_id=session
         ).retrieve_session(session)
     user_id = (
@@ -63,7 +65,7 @@ def db_session_from_metis_session(session: Session | str) -> models.Session:
 async def create_session(engine: ai.AIEngines, user_id: uuid.UUID):
     metis = AsyncMetisBot(api_key=Settings.METIS_API_KEY, bot_id=engine.metis_bot_id)
     session = await metis.create_session(user_id=str(user_id))
-    db_session = db_session_from_metis_session(session)
+    db_session = await db_session_from_metis_session(session)
     await db_session.save()
     return session
 
@@ -74,7 +76,7 @@ async def set_name(session_id: uuid.UUID, message: str):
     db_session = await models.Session.find_one({"uid": session_id})
     if not db_session:
         logging.info(f"Session {session_id} not found, creating new db session")
-        db_session = db_session_from_metis_session(session_id)
+        db_session = await db_session_from_metis_session(session_id)
 
     if db_session.name:
         logging.info(f"Session {session_id} already has a name {db_session.name}")

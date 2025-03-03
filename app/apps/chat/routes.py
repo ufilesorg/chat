@@ -197,7 +197,7 @@ class SessionRouter(AbstractBaseRouter[Session, SessionResponse]):
                     async for msg in response:
                         chunk = msg.message.content
                         # Ensure each chunk is flushed immediately
-                        yield f'{{"message": "{chunk}"}}\n\n'
+                        yield f'data: {{"message": "{chunk}"}}\n\n'
                 except Exception as e:
                     logging.error(f"Error during message streaming: {e}")
                     yield f"data: Error: {str(e)}\n\n"
