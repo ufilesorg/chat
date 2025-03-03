@@ -166,7 +166,7 @@ class SessionRouter(AbstractBaseRouter[Session, SessionResponse]):
 
                     async for msg in response:
                         chunk = msg.message.content
-                        logging.info(chunk)
+                        # logging.info(chunk)
                         # Properly format as SSE with JSON data
                         data = json.dumps({"message": chunk}, ensure_ascii=False)
                         yield f"data: {data}\n\n"
