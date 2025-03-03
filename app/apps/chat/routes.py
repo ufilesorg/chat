@@ -154,18 +154,43 @@ class SessionRouter(AbstractBaseRouter[Session, SessionResponse]):
             )
 
             async def generate():
-                import json
+                try:
+                    import json
 
-                yield "data: {}\n\n"
+                    # Send an initial empty data event to establish the connection
+                    yield "data: {}\n\n"
 
-                yield json.dumps({"uid": uid}) + "\n"
-                async for msg in response:
-                    logging.info(msg.message.content)
-                    yield msg.message.content + "\n"
+                    # Send session UID as the first message
+                    data = json.dumps({"uid": str(uid)}, ensure_ascii=False)
+                    yield f"data: {data}\n\n"
 
-                asyncio.create_task(services.register_cost(self.metis, uid, user_id))
+                    async for msg in response:
+                        chunk = msg.message.content
+                        logging.info(chunk)
+                        # Properly format as SSE with JSON data
+                        data = json.dumps({"message": chunk}, ensure_ascii=False)
+                        yield f"data: {data}\n\n"
+                        # Force each chunk to be sent immediately
+                        await asyncio.sleep(0)
+                except Exception as e:
+                    logging.error(f"Error during message streaming: {e}")
+                    error_data = json.dumps({"error": str(e)}, ensure_ascii=False)
+                    yield f"data: {error_data}\n\n"
+                finally:
+                    asyncio.create_task(
+                        services.register_cost(self.metis, uid, user_id)
+                    )
 
-            return StreamingResponse(generate(), media_type="text/plain")
+            return StreamingResponse(
+                generate(),
+                media_type="text/event-stream",
+                headers={
+                    "Cache-Control": "no-cache",
+                    "Connection": "keep-alive",
+                    "X-Accel-Buffering": "no",  # Disable Nginx buffering if you're using Nginx
+                    "Content-Type": "text/event-stream",
+                },
+            )
         if async_task:
             return (
                 await self.metis.send_message_async(session=uid, prompt=message)
