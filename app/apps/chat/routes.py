@@ -194,13 +194,17 @@ class SessionRouter(AbstractBaseRouter[Session, SessionResponse]):
 
             async def generate():
                 try:
+                    import json
+
                     async for msg in response:
                         chunk = msg.message.content
-                        # Ensure each chunk is flushed immediately
-                        yield f'data: {{"message": "{chunk}"}}\n\n'
+                        # Properly format as SSE with JSON data
+                        data = json.dumps({"message": chunk})
+                        yield f"data: {data}\n\n"
                 except Exception as e:
                     logging.error(f"Error during message streaming: {e}")
-                    yield f"data: Error: {str(e)}\n\n"
+                    error_data = json.dumps({"error": str(e)})
+                    yield f"data: {error_data}\n\n"
                 finally:
                     asyncio.create_task(
                         services.register_cost(self.metis, uid, user_id)
