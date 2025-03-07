@@ -1,11 +1,12 @@
 import asyncio
+import json
 import logging
 import uuid
 from datetime import datetime
 
 import fastapi
 from aiocache import cached
-from fastapi import Body, Query
+from fastapi import Body, Query, WebSocket
 from fastapi.responses import StreamingResponse
 from fastapi_mongo_base.routes import AbstractBaseRouter
 from metisai.async_metis import AsyncMetisBot
@@ -34,6 +35,7 @@ class SessionRouter(AbstractBaseRouter[Session, SessionResponse]):
             prefix="",
         )
         self.metis = AsyncMetisBot(api_key=Settings.METIS_API_KEY)
+        # self.connection_manager = ConnectionManager()
 
     def config_schemas(self, schema, **kwargs):
         super().config_schemas(schema, **kwargs)
@@ -59,6 +61,15 @@ class SessionRouter(AbstractBaseRouter[Session, SessionResponse]):
             self.chat_messages_async,
             methods=["GET"],
             status_code=200,
+        )
+        # self.router.add_api_route(
+        #     "/sessions/{uid:uuid}/ws",
+        #     self.websocket_endpoint,
+        #     methods=["GET"],
+        # )
+        self.router.add_websocket_route(
+            "/sessions/ws/stream",
+            self.websocket_stream_endpoint,
         )
 
     @cached(ttl=60 * 60 * 24)
@@ -140,7 +151,7 @@ class SessionRouter(AbstractBaseRouter[Session, SessionResponse]):
     ):
         user_id = await self.get_user_id(request)
         quota = await finance.check_quota(
-            user_id, len(message) * ai.AIEngines.gpt_4o.input_token_price / 1000
+            user_id, len(message) * engine.input_token_price / 1000
         )
 
         session = await services.create_session(engine, user_id)
@@ -266,6 +277,70 @@ class SessionRouter(AbstractBaseRouter[Session, SessionResponse]):
     ):
         _ = await self.get_user_id(request)
         return await self.metis.retrieve_async_task(session=uid, task_id=mid)
+
+    # @basic.try_except_wrapper
+    async def websocket_stream_endpoint(
+        self,
+        websocket: WebSocket,
+        uid: uuid.UUID | None = None,
+        engine: ai.AIEngines = ai.AIEngines.gpt_4o,
+    ):
+        try:
+            await websocket.accept()
+            logging.info("WebSocket connection accepted")
+
+            # Check authentication
+            token = websocket.cookies.get("usso_access_token")
+            if not token:
+                logging.error("Missing authentication token")
+                await websocket.close(code=1008, reason="Missing authentication token")
+                return
+
+            try:
+                user_id = await self.get_user_id(websocket)
+                logging.info(f"Authenticated user: {user_id}")
+            except Exception as e:
+                logging.error(f"Authentication error: {e}")
+                await websocket.close(code=1008, reason="Authentication failed")
+                return
+
+            message = await websocket.receive_text()
+            quota = await finance.check_quota(
+                user_id, len(message) * engine.input_token_price / 1000
+            )
+
+            logging.info(f"Message: {message}")
+
+            if uid is None:
+                session = await services.create_session(engine, user_id)
+                uid = (
+                    uuid.UUID(session.id) if isinstance(session.id, str) else session.id
+                )
+                await websocket.send_json({"uid": str(uid)})
+
+            try:
+                response = self.metis.stream_messages(
+                    session=uid, prompt=message, split_criteria={}
+                )
+                async for msg in response:
+                    chunk = msg.message.content
+                    data = json.dumps({"message": chunk}, ensure_ascii=False)
+                    await websocket.send_text(data)
+            except Exception as e:
+                logging.error(f"Error during message streaming: {e}")
+                error_data = json.dumps({"error": str(e)}, ensure_ascii=False)
+                await websocket.send_text(error_data)
+            finally:
+                asyncio.create_task(services.register_cost(self.metis, uid, user_id))
+                await websocket.close()
+
+        except Exception as e:
+            logging.error(f"WebSocket connection error: {e}")
+            try:
+                await websocket.close(code=1011, reason=f"Server error")
+            except:
+                pass
+            # raise
 
 
 router = SessionRouter().router
