@@ -3,5 +3,18 @@ from fastapi_mongo_base.core import app_factory
 
 from . import config
 
-app = app_factory.create_app(settings=config.Settings(), origins=["https://pixy.ir"])
+app = app_factory.create_app(
+    settings=config.Settings(),
+    origins=[
+        "http://localhost:8000",
+        "http://localhost:3000",
+        "https://pixiee.io",
+        "https://pixy.ir",
+        "https://studio.pixy.ir",
+        "https://studio.pixiee.io",
+        "https://dev.pixy.ir",
+        "capacitor://localhost",
+        "http://localhost",
+    ],
+)
 app.include_router(chat_router, prefix=f"{config.Settings.base_path}")
