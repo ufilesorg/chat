@@ -85,7 +85,7 @@ async def set_name(session_id: uuid.UUID, message: str):
     async with promptly.PromptlyClient() as client:
         resp = await client.ai(key="session-namer", data={"message": message})
 
-    session_name = resp.get("session_name", "New Session ...")
+    session_name = resp.get("session_name", "گفت‌وگوی جدید ...")
     language = resp.get("language", None)
 
     logging.info(
