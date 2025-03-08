@@ -71,6 +71,14 @@ class SessionRouter(AbstractBaseRouter[Session, SessionResponse]):
             "/sessions/ws/stream",
             self.websocket_stream_endpoint,
         )
+        self.router.add_websocket_route(
+            "/sessions/ws/stream2",
+            self.websocket1,
+        )
+        self.router.add_websocket_route(
+            "/sessions/ws/stream3",
+            self.websocket2,
+        )
 
     @cached(ttl=60 * 60 * 24)
     async def get_item(self, uid: uuid.UUID, **kwargs):
@@ -282,12 +290,11 @@ class SessionRouter(AbstractBaseRouter[Session, SessionResponse]):
     async def websocket_stream_endpoint(
         self,
         websocket: WebSocket,
-        uid: uuid.UUID | None = None,
-        engine: ai.AIEngines = ai.AIEngines.gpt_4o,
+        # uid: uuid.UUID | None = None,
+        # engine: ai.AIEngines = ai.AIEngines.gpt_4o,
     ):
         try:
             await websocket.accept()
-            logging.info("WebSocket connection accepted")
 
             # Check authentication
             token = websocket.cookies.get("usso_access_token")
@@ -311,6 +318,9 @@ class SessionRouter(AbstractBaseRouter[Session, SessionResponse]):
 
             logging.info(f"Message: {message}")
 
+            uid = websocket.query_params.get("uid")
+            engine = websocket.query_params.get("engine")
+
             if uid is None:
                 session = await services.create_session(engine, user_id)
                 uid = (
@@ -333,6 +343,41 @@ class SessionRouter(AbstractBaseRouter[Session, SessionResponse]):
             finally:
                 asyncio.create_task(services.register_cost(self.metis, uid, user_id))
                 await websocket.close()
+
+        except Exception as e:
+            logging.error(f"WebSocket connection error: {e}")
+            try:
+                await websocket.close(code=1011, reason=f"Server error")
+            except:
+                pass
+            # raise
+
+    async def websocket1(self, websocket: WebSocket):    
+        try:
+            import openai
+            client = openai.OpenAI(api_key=Settings.METIS_API_KEY, base_url="https://api.metisai.ir/openai/v1")
+            response = client.chat.completions.create(
+                model="gpt-4o",
+                messages=[{"role": "user", "content": "Hello, world!"}],
+                stream=True,
+            )
+            async for chunk in response:
+                await websocket.send_text(chunk)
+
+        except Exception as e:
+            logging.error(f"WebSocket connection error: {e}")
+            try:
+                await websocket.close(code=1011, reason=f"Server error")
+            except:
+                pass
+            # raise
+
+    async def websocket2(self, websocket: WebSocket):
+        try:
+            for chunk in range(20):
+                sample_text = f"Hello, world! {chunk}"
+                await websocket.send_text(sample_text)
+                await asyncio.sleep(1)
 
         except Exception as e:
             logging.error(f"WebSocket connection error: {e}")
