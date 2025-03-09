@@ -62,22 +62,9 @@ class SessionRouter(AbstractBaseRouter[Session, SessionResponse]):
             methods=["GET"],
             status_code=200,
         )
-        # self.router.add_api_route(
-        #     "/sessions/{uid:uuid}/ws",
-        #     self.websocket_endpoint,
-        #     methods=["GET"],
-        # )
         self.router.add_websocket_route(
             "/sessions/ws/stream",
             self.websocket_stream_endpoint,
-        )
-        self.router.add_websocket_route(
-            "/sessions/ws/stream2",
-            self.websocket1,
-        )
-        self.router.add_websocket_route(
-            "/sessions/ws/stream3",
-            self.websocket2,
         )
 
     @cached(ttl=60 * 60 * 24)
@@ -352,40 +339,6 @@ class SessionRouter(AbstractBaseRouter[Session, SessionResponse]):
                 pass
             # raise
 
-    async def websocket1(self, websocket: WebSocket):    
-        try:
-            import openai
-            client = openai.OpenAI(api_key=Settings.METIS_API_KEY, base_url="https://api.metisai.ir/openai/v1")
-            response = client.chat.completions.create(
-                model="gpt-4o",
-                messages=[{"role": "user", "content": "Hello, world!"}],
-                stream=True,
-            )
-            async for chunk in response:
-                await websocket.send_text(chunk)
-
-        except Exception as e:
-            logging.error(f"WebSocket connection error: {e}")
-            try:
-                await websocket.close(code=1011, reason=f"Server error")
-            except:
-                pass
-            # raise
-
-    async def websocket2(self, websocket: WebSocket):
-        try:
-            for chunk in range(20):
-                sample_text = f"Hello, world! {chunk}"
-                await websocket.send_text(sample_text)
-                await asyncio.sleep(1)
-
-        except Exception as e:
-            logging.error(f"WebSocket connection error: {e}")
-            try:
-                await websocket.close(code=1011, reason=f"Server error")
-            except:
-                pass
-            # raise
 
 
 router = SessionRouter().router

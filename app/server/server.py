@@ -15,6 +15,7 @@ app = app_factory.create_app(
         "https://dev.pixy.ir",
         "capacitor://localhost",
         "http://localhost",
+        "https://localhost",
     ],
 )
 app.include_router(chat_router, prefix=f"{config.Settings.base_path}")

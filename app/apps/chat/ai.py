@@ -2,14 +2,17 @@ from enum import Enum
 
 
 class AIEngines(str, Enum):
+    gpt_4_5 = "gpt-4.5"
     gpt_4o = "gpt-4o"
     gpt_4o_mini = "gpt-4o-mini"
     claude_3_5_sonnet = "claude-3-5-sonnet"
+    claude_3_7_sonnet = "claude-3-7-sonnet"
     gemini_1_5_flash = "gemini-1-5-flash"
     gemini_2_flash = "gemini-2-flash"
     grok = "grok"
     deepseek = "deepseek"
     deepseek_reasoner = "deepseek_reasoner"
+
     # gpt_4_turbo = "gpt-4-turbo"
     # gpt_4 = "gpt-4"
     # gpt35turbo = "gpt-3.5-turbo"
@@ -24,6 +27,14 @@ class AIEngines(str, Enum):
     @property
     def _info(self):
         return {
+            AIEngines.gpt_4o: {
+                "metis_bot_id": "bc92b0ee-cc4b-4694-94d3-4b6f21cb898f",
+                "thumbnail_url": "https://upload.wikimedia.org/wikipedia/commons/e/ef/ChatGPT-Logo.svg",
+                "price": 16.5,
+                "input_token_price": 8.25,
+                "output_token_price": 16.5,
+                "max_tokens": 16384,
+            },
             AIEngines.gpt_4o: {
                 "metis_bot_id": "55d1e911-67f1-493c-b4ff-bbafcca0e26b",
                 "thumbnail_url": "https://upload.wikimedia.org/wikipedia/commons/e/ef/ChatGPT-Logo.svg",
@@ -47,6 +58,13 @@ class AIEngines(str, Enum):
                 "input_token_price": 0.33,
                 "output_token_price": 1.65,
                 "max_tokens": 16384,
+            },
+            AIEngines.claude_3_7_sonnet: {
+                "metis_bot_id": "8b2bce3c-e57f-431e-a752-c00997bd5412",
+                "thumbnail_url": "https://www.anthropic.com/images/icons/safari-pinned-tab.svg",
+                "price": 1.65,
+                "input_token_price": 0.33,
+                "output_token_price": 1.65,
             },
             AIEngines.gemini_1_5_flash: {
                 "metis_bot_id": "7c8371dc-29cd-4a99-b835-f17cdb8adf36",
