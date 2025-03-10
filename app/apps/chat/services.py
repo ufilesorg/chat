@@ -46,9 +46,9 @@ async def db_session_from_metis_session(
     session: Session | str | uuid.UUID,
 ) -> models.Session:
     if isinstance(session, str | uuid.UUID):
-        session = await AsyncMetisBot(
-            api_key=Settings.METIS_API_KEY, bot_id=session
-        ).retrieve_session(session)
+        metis = AsyncMetisBot(api_key=Settings.METIS_API_KEY, bot_id=session)
+        session = await metis.retrieve_session(session)
+
     user_id = (
         uuid.UUID(session.user.id)
         if isinstance(session.user.id, str)

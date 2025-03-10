@@ -179,7 +179,12 @@ class SessionRouter(AbstractBaseRouter[Session, SessionResponse]):
                         # Force each chunk to be sent immediately
                         await asyncio.sleep(0)
                 except Exception as e:
-                    logging.error(f"Error during message streaming: {e}")
+                    import traceback
+
+                    traceback_str = "".join(traceback.format_tb(e.__traceback__))
+                    logging.error(
+                        f"Error during message streaming: {type(e)} {e}\n{traceback_str}"
+                    )
                     error_data = json.dumps({"error": str(e)}, ensure_ascii=False)
                     yield f"data: {error_data}\n\n"
                 finally:
@@ -238,17 +243,15 @@ class SessionRouter(AbstractBaseRouter[Session, SessionResponse]):
 
                     async for msg in response:
                         chunk = msg.message.content
-                        # logging.info(chunk)
-                        # Properly format as SSE with JSON data
                         data = json.dumps({"message": chunk}, ensure_ascii=False)
                         yield f"data: {data}\n\n"
-                        # Force each chunk to be sent immediately
-                        await asyncio.sleep(0)
                 except Exception as e:
                     logging.error(f"Error during message streaming: {e}")
                     error_data = json.dumps({"error": str(e)}, ensure_ascii=False)
                     yield f"data: {error_data}\n\n"
                 finally:
+                    data = json.dumps({"finished": True}, ensure_ascii=False)
+                    yield f"data: {data}\n\n"
                     asyncio.create_task(
                         services.register_cost(self.metis, uid, user_id)
                     )
@@ -338,7 +341,6 @@ class SessionRouter(AbstractBaseRouter[Session, SessionResponse]):
             except:
                 pass
             # raise
-
 
 
 router = SessionRouter().router

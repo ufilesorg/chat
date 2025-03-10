@@ -27,7 +27,7 @@ class AIEngines(str, Enum):
     @property
     def _info(self):
         return {
-            AIEngines.gpt_4o: {
+            AIEngines.gpt_4_5: {
                 "metis_bot_id": "bc92b0ee-cc4b-4694-94d3-4b6f21cb898f",
                 "thumbnail_url": "https://upload.wikimedia.org/wikipedia/commons/e/ef/ChatGPT-Logo.svg",
                 "price": 16.5,
