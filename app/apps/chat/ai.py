@@ -2,9 +2,9 @@ from enum import Enum
 
 
 class AIEngines(str, Enum):
-    gpt_4_5 = "gpt-4.5"
     gpt_4o = "gpt-4o"
     gpt_4o_mini = "gpt-4o-mini"
+    gpt_4_5 = "gpt-4.5"
     claude_3_5_sonnet = "claude-3-5-sonnet"
     claude_3_7_sonnet = "claude-3-7-sonnet"
     gemini_1_5_flash = "gemini-1-5-flash"
