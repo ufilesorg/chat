@@ -43,7 +43,13 @@ class SessionRouter(AbstractBaseRouter[Session, SessionResponse]):
         self.retrieve_response_schema = SessionDetailResponse
 
     def config_routes(self, **kwargs):
-        super().config_routes(prefix="/sessions")
+        super().config_routes(prefix="/sessions", delete_route=False)
+        self.router.add_api_route(
+            "/sessions/{uid:uuid}",
+            self.delete_item,
+            methods=["DELETE"],
+            status_code=200,
+        )
         self.router.add_api_route(
             "/sessions/messages",
             self.create_session_chat_messages,
